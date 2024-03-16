@@ -2,9 +2,11 @@ import {
   A,
   RouteDefinition,
   RouteSectionProps,
+  Location,
   cache,
   createAsync,
 } from "@solidjs/router";
+import { createEffect } from "solid-js";
 
 type Movie = {
   imdbID: string;
@@ -13,6 +15,7 @@ type Movie = {
 };
 
 const getMovies = cache(async (location) => {
+  "use server";
   const searchParams = new URLSearchParams(location?.search);
   const search = searchParams.get("search");
   if (!search) return [];
@@ -25,6 +28,11 @@ const getMovies = cache(async (location) => {
   return data.Search as Movie[];
 }, "movies");
 
+const getSearch = cache(async (location: Location<unknown>) => {
+  const search = new URLSearchParams(location.search).get("search");
+  return search;
+}, "search");
+
 export const route = {
   load({ location }) {
     void getMovies(location);
@@ -33,6 +41,15 @@ export const route = {
 
 export default function Home(props: RouteSectionProps) {
   const movies = createAsync(() => getMovies(props.location));
+  const search = createAsync(() => getSearch(props.location));
+
+  let searchInputEl!: HTMLInputElement;
+
+  createEffect(() => {
+    if (searchInputEl) {
+      searchInputEl.value = search() ?? "";
+    }
+  });
 
   return (
     <main class="max-w-screen-lg mx-auto py-10 px-3 sm:px-4 lg:px-0">
@@ -45,6 +62,7 @@ export default function Home(props: RouteSectionProps) {
         </p>
         <form class="w-72 mt-4" id="search-form" role="search">
           <input
+            ref={searchInputEl}
             class="mt-2 shadow-sm w-full rounded-md border-0 p-2 px-4 text-gray-700 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:outline-none focus:ring-gray-500 sm:text-sm sm:leading-6"
             aria-label="Search movies"
             id="search"
